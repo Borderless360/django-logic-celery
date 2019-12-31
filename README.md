@@ -1,6 +1,7 @@
 # Django Logic Celery
-Django Logic Celery extension to support background transitions
+[![Build Status](https://travis-ci.org/Borderless360/django-logic-celery.svg?branch=master)](https://travis-ci.org/Borderless360/django-logic-celery)[![Coverage Status](https://coveralls.io/repos/github/Borderless360/django-logic-celery/badge.svg?branch=master)](https://coveralls.io/github/Borderless360/django-logic-celery?branch=master)
 
+Background transitions support for [Django Logic](https://github.com/Borderless360/django-logic)
 
 ## Installation
 
