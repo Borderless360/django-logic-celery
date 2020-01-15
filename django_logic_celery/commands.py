@@ -53,7 +53,7 @@ class SideEffectTasks(SideEffects):
 
         header = [signature(task_name, kwargs=task_kwargs) for task_name in self.commands]
         header = chain(*header)
-        task_kwargs.update(dict(transition=self.transition))
+        task_kwargs.update(dict(transition=self._transition))
         body = complete_transition.s(**task_kwargs)
         tasks = chain(header | body).on_error(fail_transition.s(**task_kwargs))
         transaction.on_commit(tasks.delay)
