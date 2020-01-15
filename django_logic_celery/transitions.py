@@ -5,7 +5,6 @@ from django_logic_celery import SideEffectTasks, CallbacksTasks
 
 class InProgressTransition(Transition):
     side_effects_class = SideEffectTasks
-    failure_callbacks_class = CallbacksTasks
 
 
 class CeleryCallbackTransition(Transition):
@@ -15,4 +14,3 @@ class CeleryCallbackTransition(Transition):
 class CeleryTransition(Transition):
     side_effects_class = SideEffectTasks
     callbacks_class = CallbacksTasks
-    failure_callbacks_class = CallbacksTasks
