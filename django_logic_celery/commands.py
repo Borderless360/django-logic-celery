@@ -104,11 +104,11 @@ class CallbacksTasks(CeleryTaskMixin, Callbacks):
 
 class SideEffectSingleTask(CeleryTaskMixin, SideEffects):
     def queue_task(self, task_kwargs):
-        sig = run_side_effects_as_task.signature(**task_kwargs)
+        sig = run_side_effects_as_task.signature(kwargs=task_kwargs)
         transaction.on_commit(sig.delay)
 
 
 class CallbacksSingleTask(CeleryTaskMixin, Callbacks):
     def queue_task(self, task_kwargs):
-        sig = run_callbacks_as_task.signature(**task_kwargs)
+        sig = run_callbacks_as_task.signature(kwargs=task_kwargs)
         transaction.on_commit(sig.delay)
