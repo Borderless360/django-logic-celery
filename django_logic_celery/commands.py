@@ -54,6 +54,8 @@ def run_side_effects_as_task(**kwargs):
     except Exception:
         transition.fail_transition(instance, field_name, **kwargs)
 
+    transition.complete_transition(instance, field_name, **kwargs)
+
 
 @shared_task(acks_late=True)
 def run_callbacks_as_task(**kwargs):
