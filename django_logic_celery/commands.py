@@ -41,16 +41,53 @@ def fail_transition(task_id, *args, **kwargs):
         print('Exception')
 
 
-class SideEffectTasks(SideEffects):
+@shared_task(acks_late=True)
+def run_side_effects_as_task(**kwargs):
+    app = apps.get_app_config(kwargs['app_label'])
+    model = app.get_model(kwargs['model_name'])
+    instance = model.objects.get(id=kwargs['instance_id'])
+    field_name = kwargs.pop('field_name')
+    transition = kwargs['transition']
+    try:
+        for side_effect in transition.side_effects:
+            side_effect(instance)
+    except Exception:
+        transition.fail_transition(instance, field_name, **kwargs)
+
+
+@shared_task(acks_late=True)
+def run_callbacks_as_task(**kwargs):
+    app = apps.get_app_config(kwargs['app_label'])
+    model = app.get_model(kwargs['model_name'])
+    instance = model.objects.get(id=kwargs['instance_id'])
+    transition = kwargs['transition']
+
+    for callback in transition.callbacks:
+        callback(instance)
+
+
+class CeleryTaskMixin:
     def execute(self, instance: any, field_name: str, **kwargs):
         if not self.commands:
-            return super(SideEffectTasks, self).execute(instance, field_name)
+            return super().execute(instance, field_name)
 
-        task_kwargs = dict(app_label=instance._meta.app_label,
-                           model_name=instance._meta.model_name,
-                           instance_id=instance.pk,
-                           field_name=field_name)
+        task_kwargs = self.get_task_kwargs(instance, field_name)
+        self.queue_task(task_kwargs)
 
+    def get_task_kwargs(self, instance: any, field_name: str, **kwargs):
+        return dict(
+            app_label=instance._meta.app_label,
+            model_name=instance._meta.model_name,
+            instance_id=instance.pk,
+            field_name=field_name
+        )
+
+    def queue_task(self, task_kwargs):
+        return NotImplementedError
+
+
+class SideEffectTasks(CeleryTaskMixin, SideEffects):
+    def queue_task(self, task_kwargs):
         header = [signature(task_name, kwargs=task_kwargs) for task_name in self.commands]
         header = chain(*header)
         task_kwargs.update(dict(transition=self._transition))
@@ -59,15 +96,19 @@ class SideEffectTasks(SideEffects):
         transaction.on_commit(tasks.delay)
 
 
-class CallbacksTasks(Callbacks):
-    def execute(self, instance, field_name: str, **kwargs):
-        if not self.commands:
-            return super(CallbacksTasks, self).execute(instance, field_name)
-
-        task_kwargs = dict(app_label=instance._meta.app_label,
-                           model_name=instance._meta.model_name,
-                           instance_id=instance.pk,
-                           field_name=field_name)
-
+class CallbacksTasks(CeleryTaskMixin, Callbacks):
+    def queue_task(self, task_kwargs):
         tasks = [signature(task_name, kwargs=task_kwargs) for task_name in self.commands]
         transaction.on_commit(group(tasks))
+
+
+class SideEffectSingleTask(CeleryTaskMixin, SideEffects):
+    def queue_task(self, task_kwargs):
+        sig = run_side_effects_as_task.signature(**task_kwargs)
+        transaction.on_commit(sig.delay)
+
+
+class CallbacksSingleTask(CeleryTaskMixin, Callbacks):
+    def queue_task(self, task_kwargs):
+        sig = run_callbacks_as_task.signature(**task_kwargs)
+        transaction.on_commit(sig.delay)
