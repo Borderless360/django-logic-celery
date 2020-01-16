@@ -103,12 +103,22 @@ class CallbacksTasks(CeleryTaskMixin, Callbacks):
 
 
 class SideEffectSingleTask(CeleryTaskMixin, SideEffects):
+    def get_task_kwargs(self, instance: any, field_name: str, **kwargs):
+        task_kwargs = super().get_task_kwargs(instance, field_name, **kwargs)
+        task_kwargs['transition'] = self._transition
+        return task_kwargs
+
     def queue_task(self, task_kwargs):
         sig = run_side_effects_as_task.signature(kwargs=task_kwargs)
         transaction.on_commit(sig.delay)
 
 
 class CallbacksSingleTask(CeleryTaskMixin, Callbacks):
+    def get_task_kwargs(self, instance: any, field_name: str, **kwargs):
+        task_kwargs = super().get_task_kwargs(instance, field_name, **kwargs)
+        task_kwargs['transition'] = self._transition
+        return task_kwargs
+
     def queue_task(self, task_kwargs):
         sig = run_callbacks_as_task.signature(kwargs=task_kwargs)
         transaction.on_commit(sig.delay)
