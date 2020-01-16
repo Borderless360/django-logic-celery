@@ -49,7 +49,7 @@ def run_side_effects_as_task(**kwargs):
     field_name = kwargs.pop('field_name')
     transition = kwargs['transition']
     try:
-        for side_effect in transition.side_effects:
+        for side_effect in transition.side_effects.commands:
             side_effect(instance)
     except Exception:
         transition.fail_transition(instance, field_name, **kwargs)
@@ -62,7 +62,7 @@ def run_callbacks_as_task(**kwargs):
     instance = model.objects.get(id=kwargs['instance_id'])
     transition = kwargs['transition']
 
-    for callback in transition.callbacks:
+    for callback in transition.callbacks.commands:
         callback(instance)
 
 
