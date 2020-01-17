@@ -1,16 +1,12 @@
 from django.test import TestCase
-from django_logic import Process, Transition
+from django_logic import Process
 
 from demo.models import Invoice
-from django_logic_celery import SideEffectTasks
+from django_logic_celery import InProgressTransition
 
 
 class User:
     is_allowed = True
-
-
-class InProgressTransition(Transition):
-    side_effects = SideEffectTasks()
 
 
 class ApplyTransitionTestCase(TestCase):

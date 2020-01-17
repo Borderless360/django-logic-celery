@@ -1,8 +1,7 @@
 from django.db import models
+from django_logic.process import ProcessManager
 
 from demo.process import InvoiceProcess
-
-from django_logic.process import ProcessManager
 
 
 class Invoice(ProcessManager.bind_state_fields(status=InvoiceProcess), models.Model):

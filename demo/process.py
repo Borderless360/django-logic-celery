@@ -1,9 +1,12 @@
 from django_logic import Process, Transition
+
 from django_logic_celery import SideEffectTasks, CallbacksTasks
 
 
-class InProgressTransition(Transition):
-    side_effects = SideEffectTasks()
+class CeleryTransition(Transition):
+    side_effects_class = SideEffectTasks
+    callbacks_class = CallbacksTasks
+    failure_callbacks_class = CallbacksTasks
 
 
 class ProgressTransition(Transition):
@@ -29,7 +32,7 @@ class InvoiceProcess(Process):
             sources=['draft'],
             target='approved'
         ),
-        InProgressTransition(
+        CeleryTransition(
             action_name='send_to_customer',
             sources=['approved'],
             side_effects=['demo.tasks.send_to_a_customer'],
@@ -40,7 +43,7 @@ class InvoiceProcess(Process):
             sources=['draft', 'paid'],
             target='voided'
         ),
-        ProgressTransition(
+        CeleryTransition(
             action_name='demo',
             sources=['draft'],
             target='sent',
