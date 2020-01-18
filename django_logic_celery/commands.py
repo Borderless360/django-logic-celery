@@ -1,94 +1,111 @@
+import logging
 from celery import signature, group, chain, shared_task
 from celery.result import AsyncResult
 from django.apps import apps
 from django.db import transaction
 from django_logic.commands import SideEffects, Callbacks
-
-
-class TransitionTaskFailed(Exception):
-    pass
+from django_logic.state import State
 
 
 @shared_task(acks_late=True)
-def complete_transition(*args, **kwargs):
-    app = apps.get_app_config(kwargs['app_label'])
-    model = app.get_model(kwargs['model_name'])
-    instance = model.objects.get(id=kwargs['instance_id'])
-    transition = kwargs['transition']
-    field_name = kwargs.pop('field_name')
+def complete_transition(app_label, model_name, transition, instance_id, process_name, **kwargs):
+    """Completes transition """
+    app = apps.get_app_config(app_label)
+    model = app.get_model(model_name)
+    instance = model.objects.get(id=instance_id)
+    state = getattr(instance, process_name).state
 
-    transition.complete_transition(instance, field_name, **kwargs)
+    logging.info(f'{state.instance_key} complete transition task started')
+    transition.complete_transition(state, **kwargs)
+    logging.info(f'{state.instance_key} complete transition task finished')
 
 
 @shared_task(acks_late=True)
-def fail_transition(task_id, *args, **kwargs):
+def fail_transition(task_id, app_label, model_name, transition, instance_id, process_name, **kwargs):
+    """
+    Transition failure handler handles exceptions and runs fail_transition method of provided Transition.
+    Make sure to catch all exceptions by this failure handler as otherwise
+    it leads to the worker crash.
+    """
     try:
-        transition = kwargs['transition']
-        try:
-            # Exception passed through args
-            exc = args[0]
-        except IndexError:
-            task = AsyncResult(task_id)
-            exc = task.info
-
-        app = apps.get_app_config(kwargs['app_label'])
-        model = app.get_model(kwargs['model_name'])
-        instance = model.objects.get(id=kwargs['instance_id'])
-        field_name = kwargs.pop('field_name')
-        transition.fail_transition(instance, field_name, **kwargs)
-    except Exception:
-        # TODO: add logger
-        print('Exception')
+        app = apps.get_app_config(app_label)
+        model = app.get_model(model_name)
+        instance = model.objects.get(id=instance_id)
+        state = getattr(instance, process_name).state
+        task = AsyncResult(task_id)
+        error = task.info
+        logging.error(f'{state.instance_key} failed with error {error}')
+        transition.fail_transition(state, **kwargs)
+    except Exception as error:
+        logging.error(f'{app_label}-{model_name}-{transition.action_name}-{instance_id}'
+                      f'failed with error: {error}')
 
 
 @shared_task(acks_late=True)
-def run_side_effects_as_task(**kwargs):
-    app = apps.get_app_config(kwargs['app_label'])
-    model = app.get_model(kwargs['model_name'])
-    instance = model.objects.get(id=kwargs['instance_id'])
-    field_name = kwargs.pop('field_name')
-    transition = kwargs['transition']
+def run_side_effects_as_task(app_label, model_name, transition, instance_id, process_name, **kwargs):
+    """It runs all side-effects of provided transition under a single task"""
+    app = apps.get_app_config(app_label)
+    model = app.get_model(model_name)
+    instance = model.objects.get(id=instance_id)
+    state = getattr(instance, process_name).state
+    logging.info(f"{state.instance_key} single task's side-effects of "
+                 f"'{transition.action_name}' action started")
+
     try:
         for side_effect in transition.side_effects.commands:
             side_effect(instance)
-    except Exception:
-        transition.fail_transition(instance, field_name, **kwargs)
-
-    transition.complete_transition(instance, field_name, **kwargs)
+    except Exception as error:
+        logging.error(f"{state.instance_key} single task's side-effects of "
+                      f"'{transition.action_name}' action "  
+                      f"failed with error: {error}")
+        transition.fail_transition(state, **kwargs)
+    else:
+        logging.info(f"{state.instance_key} side-effects of "
+                     f"'{transition.action_name}' action succeed")
+        transition.complete_transition(state, **kwargs)
 
 
 @shared_task(acks_late=True)
-def run_callbacks_as_task(**kwargs):
-    app = apps.get_app_config(kwargs['app_label'])
-    model = app.get_model(kwargs['model_name'])
-    instance = model.objects.get(id=kwargs['instance_id'])
-    transition = kwargs['transition']
+def run_callbacks_as_task(app_label, model_name, transition, instance_id, process_name, **kwargs):
+    """It runs all callbacks of provided transition under a single task"""
+    app = apps.get_app_config(app_label)
+    model = app.get_model(model_name)
+    instance = model.objects.get(id=instance_id)
 
     for callback in transition.callbacks.commands:
         callback(instance)
 
 
-class CeleryTaskMixin:
-    def execute(self, instance: any, field_name: str, **kwargs):
+class CeleryCommandMixin:
+    """Celery command mixin"""
+    def execute(self, state: State, **kwargs):
         if not self.commands:
-            return super().execute(instance, field_name)
+            return super().execute(state)
 
-        task_kwargs = self.get_task_kwargs(instance, field_name)
+        task_kwargs = self.get_task_kwargs(state)
         self.queue_task(task_kwargs)
+        logging.info(f'{self.__class__.__name__} has been added to queue with '
+                     f'the following parameters {task_kwargs}')
 
-    def get_task_kwargs(self, instance: any, field_name: str, **kwargs):
+    def get_task_kwargs(self, state: State, **kwargs):
         return dict(
-            app_label=instance._meta.app_label,
-            model_name=instance._meta.model_name,
-            instance_id=instance.pk,
-            field_name=field_name
+            app_label=state.instance._meta.app_label,
+            model_name=state.instance._meta.model_name,
+            instance_id=state.instance.pk,
+            process_name=state.process_name,
+            field_name=state.field_name
         )
 
     def queue_task(self, task_kwargs):
         return NotImplementedError
 
 
-class SideEffectTasks(CeleryTaskMixin, SideEffects):
+class SideEffectTasks(CeleryCommandMixin, SideEffects):
+    """
+    Celery side-effects creates a chain of celery tasks where every task is a command.
+    In case of success it triggers complete_transition task
+    In case of failure it triggers fail_transition task
+    """
     def queue_task(self, task_kwargs):
         header = [signature(task_name, kwargs=task_kwargs) for task_name in self.commands]
         header = chain(*header)
@@ -98,15 +115,17 @@ class SideEffectTasks(CeleryTaskMixin, SideEffects):
         transaction.on_commit(tasks.delay)
 
 
-class CallbacksTasks(CeleryTaskMixin, Callbacks):
+class CallbacksTasks(CeleryCommandMixin, Callbacks):
+    """Callbacks commands executed as a celery group of tasks"""
     def queue_task(self, task_kwargs):
         tasks = [signature(task_name, kwargs=task_kwargs) for task_name in self.commands]
         transaction.on_commit(group(tasks))
 
 
-class SideEffectSingleTask(CeleryTaskMixin, SideEffects):
-    def get_task_kwargs(self, instance: any, field_name: str, **kwargs):
-        task_kwargs = super().get_task_kwargs(instance, field_name, **kwargs)
+class SideEffectSingleTask(CeleryCommandMixin, SideEffects):
+    """Side-effects commands executed as a single celery task"""
+    def get_task_kwargs(self, state: State, **kwargs):
+        task_kwargs = super().get_task_kwargs(state, **kwargs)
         task_kwargs['transition'] = self._transition
         return task_kwargs
 
@@ -115,9 +134,10 @@ class SideEffectSingleTask(CeleryTaskMixin, SideEffects):
         transaction.on_commit(sig.delay)
 
 
-class CallbacksSingleTask(CeleryTaskMixin, Callbacks):
-    def get_task_kwargs(self, instance: any, field_name: str, **kwargs):
-        task_kwargs = super().get_task_kwargs(instance, field_name, **kwargs)
+class CallbacksSingleTask(CeleryCommandMixin, Callbacks):
+    """Callbacks commands executed as a single celery task"""
+    def get_task_kwargs(self, state: State, **kwargs):
+        task_kwargs = super().get_task_kwargs(state, **kwargs)
         task_kwargs['transition'] = self._transition
         return task_kwargs
 
