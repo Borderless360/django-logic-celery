@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="django-logic-celery",
-    version="0.0.2",
+    version="0.0.3",
     author="Emil Balashov",
     author_email="emil@borderless360.com",
     description="Django Logic Celery - background transitions",
