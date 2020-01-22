@@ -1,30 +1,23 @@
-from django.test import TestCase
+from django.test import TransactionTestCase
 from django_logic import Process
 
 from demo.models import Invoice
 from django_logic_celery import InProgressTransition
+from demo.tasks import *
+from django_logic_celery.commands import complete_transition, fail_transition
 
 
 class User:
     is_allowed = True
 
 
-class ApplyTransitionTestCase(TestCase):
+class ApplyTransitionTestCase(TransactionTestCase):
     def setUp(self) -> None:
         self.user = User()
-        self.invoice = Invoice.objects.create(status='draft')
+        self.invoice = Invoice.objects.create(status='approved')
 
     def test_simple_transition(self):
-        class TestProcess(Process):
-            transitions = [
-                InProgressTransition('cancel',
-                                     sources=['draft', ],
-                                     target='cancelled',
-                                     in_progress_state='cancelling',
-                                     side_effects='demo.tasks.send_to_a_customer')
-            ]
-
-        process = TestProcess(instance=self.invoice, field_name='status')
-        process.cancel()
+        self.invoice.invoice_process.send_to_customer()
         self.invoice.refresh_from_db()
-        self.assertEqual(self.invoice.status, 'cancelling')
+        self.assertEqual(self.invoice.status, 'sent')
+        self.assertTrue(self.invoice.customer_received)

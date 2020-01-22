@@ -1,6 +1,7 @@
 from django_logic import Process, Transition
 
-from django_logic_celery import SideEffectTasks, CallbacksTasks
+from django_logic_celery import SideEffectTasks, CallbacksTasks, CallbacksSingleTask, SideEffectSingleTask
+from demo import tasks
 
 
 class CeleryTransition(Transition):
@@ -8,11 +9,10 @@ class CeleryTransition(Transition):
     callbacks_class = CallbacksTasks
     failure_callbacks_class = CallbacksTasks
 
-
-class ProgressTransition(Transition):
-    side_effects = SideEffectTasks()
-    callbacks = CallbacksTasks()
-    failure_callbacks = CallbacksTasks()
+class CelerySingleTaskTransition(Transition):
+    side_effects_class = SideEffectSingleTask
+    callbacks_class = CallbacksSingleTask
+    failure_callbacks_class = CallbacksSingleTask
 
 
 class InvoiceProcess(Process):
@@ -51,7 +51,15 @@ class InvoiceProcess(Process):
             side_effects=['demo.tasks.demo_task_1', 'demo.tasks.demo_task_2', 'demo.tasks.demo_task_3'],
             callbacks=['demo.tasks.demo_task_4', 'demo.tasks.demo_task_5']
         ),
-        ProgressTransition(
+        CelerySingleTaskTransition(
+            action_name='demo_single',
+            sources=['draft'],
+            target='sent',
+            in_progress_state='in_progress',
+            side_effects=[tasks.demo_task_1, tasks.demo_task_2, tasks.demo_task_3],
+            callbacks=[tasks.demo_task_4, tasks.demo_task_5]
+        ),
+        CeleryTransition(
             action_name='failing_transition',
             sources=['draft'],
             target='sent',
@@ -59,6 +67,15 @@ class InvoiceProcess(Process):
             failed_state='failed',
             side_effects=['demo.tasks.demo_task_1', 'demo.tasks.demo_task_exception', 'demo.tasks.demo_task_2'],
             failure_callbacks=['demo.tasks.demo_task_3', 'demo.tasks.demo_task_4']
+        ),
+        CelerySingleTaskTransition(
+            action_name='failing_transition_single',
+            sources=['draft'],
+            target='sent',
+            in_progress_state='in_progress',
+            failed_state='failed',
+            side_effects=[tasks.demo_task_1, tasks.demo_task_exception, tasks.demo_task_2],
+            failure_callbacks=[tasks.demo_task_3, tasks.demo_task_4]
         )
 
     ]
