@@ -12,6 +12,9 @@ class Invoice(ProcessManager.bind_state_fields(status=InvoiceProcess), models.Mo
     def __str__(self):
         return self.status
 
+    def debug(self, *args, **kwargs):
+        pass
+
 
 class Order(models.Model):
     payment_status = models.CharField(max_length=16, blank=True)
