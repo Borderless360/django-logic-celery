@@ -50,11 +50,13 @@ def fail_transition(task_id, *args, **kwargs):
         except IndexError:
             task = AsyncResult(task_id)
             error = task.info
-        logging.error(f'{state.instance_key} failed with error {error}')
+        logging.info(f"{state.instance_key} action '{transition.action_name}' failed with error {error}")
+        logging.exception(error)
         transition.fail_transition(state, error, **kwargs)
     except Exception as error:
-        logging.error(f'{app_label}-{model_name}-{transition.action_name}-{instance_id}'
-                      f'failed with error: {error}')
+        logging.info(f'{app_label}-{model_name}-{transition.action_name}-{instance_id}'
+                      f'failure handler failed with error: {error}')
+        logging.exception(error)
 
 
 @shared_task(acks_late=True)
@@ -64,34 +66,39 @@ def run_side_effects_as_task(app_label, model_name, transition, instance_id, pro
     model = app.get_model(model_name)
     instance = model.objects.get(id=instance_id)
     state = getattr(instance, process_name).state
-    logging.info(f"{state.instance_key} single task's side-effects of "
-                 f"'{transition.action_name}' action started")
+    logging.info(f"{state.instance_key} side effects of '{transition.action_name}' started")
 
     try:
         for side_effect in transition.side_effects.commands:
             side_effect(instance)
     except Exception as error:
-        logging.error(f"{state.instance_key} single task's side-effects of "
-                      f"'{transition.action_name}' action "
-                      f"failed with error: {error}")
+        logging.error(f"{state.instance_key} side effects of '{transition.action_name}' failed with error: {error}")
+        logging.exception(error)
         transition.fail_transition(state, error, **kwargs)
     else:
-        logging.info(f"{state.instance_key} side-effects of "
-                     f"'{transition.action_name}' action succeed")
+        logging.info(f"{state.instance_key} side effects of '{transition.action_name}' succeeded")
         transition.complete_transition(state, **kwargs)
 
 
 @shared_task(acks_late=True)
 def run_callbacks_as_task(app_label, model_name, transition, instance_id, process_name, **kwargs):
     """It runs all callbacks of provided transition under a single task"""
-    app = apps.get_app_config(app_label)
-    model = app.get_model(model_name)
-    instance = model.objects.get(id=instance_id)
-    exception = kwargs.get('exception')
-    commands = transition.callbacks.commands if not exception else transition.failure_callbacks.commands
-    callback_kwargs = {} if not exception else {"exception": exception}
-    for callback in commands:
-        callback(instance, **callback_kwargs)
+    try:
+        app = apps.get_app_config(app_label)
+        model = app.get_model(model_name)
+        instance = model.objects.get(id=instance_id)
+        state = getattr(instance, process_name).state
+        logging.info(f"{state.instance_key} callbacks of '{transition.action_name}' started")
+
+        exception = kwargs.get('exception')
+        commands = transition.callbacks.commands if not exception else transition.failure_callbacks.commands
+        callback_kwargs = {} if not exception else {"exception": exception}
+        for callback in commands:
+            callback(instance, **callback_kwargs)
+    except Exception as error:
+        logging.info(f'{app_label}-{model_name}-{transition.action_name}-{instance_id}'
+                     f'callbacks failed with error: {error}')
+        logging.exception(error)
 
 
 class CeleryCommandMixin:
