@@ -72,7 +72,7 @@ def run_side_effects_as_task(app_label, model_name, transition, instance_id, pro
         for side_effect in transition.side_effects.commands:
             side_effect(instance)
     except Exception as error:
-        logging.error(f"{state.instance_key} side effects of '{transition.action_name}' failed with error: {error}")
+        logging.info(f"{state.instance_key} side effects of '{transition.action_name}' failed with error: {error}")
         logging.exception(error)
         transition.fail_transition(state, error, **kwargs)
     else:
