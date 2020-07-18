@@ -1,4 +1,4 @@
-![django-logic-celery](https://user-images.githubusercontent.com/6745569/87846550-45b81c00-c903-11ea-8052-956770b304fd.png)
+![django-logic-celery](https://user-images.githubusercontent.com/6745569/87846587-7e57f580-c903-11ea-8ef7-b3ca129c92b1.png)
 
 [![Build Status](https://travis-ci.org/Borderless360/django-logic-celery.svg?branch=master)](https://travis-ci.org/Borderless360/django-logic-celery)[![Coverage Status](https://coveralls.io/repos/github/Borderless360/django-logic-celery/badge.svg?branch=master)](https://coveralls.io/github/Borderless360/django-logic-celery?branch=master)
 
