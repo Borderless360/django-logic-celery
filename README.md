@@ -1,4 +1,5 @@
-# Django Logic Celery
+![django-logic-celery](https://user-images.githubusercontent.com/6745569/87846487-db9f7700-c902-11ea-8199-bb3a95956088.png)
+
 [![Build Status](https://travis-ci.org/Borderless360/django-logic-celery.svg?branch=master)](https://travis-ci.org/Borderless360/django-logic-celery)[![Coverage Status](https://coveralls.io/repos/github/Borderless360/django-logic-celery/badge.svg?branch=master)](https://coveralls.io/github/Borderless360/django-logic-celery?branch=master)
 
 Background transitions support for [Django Logic](https://github.com/Borderless360/django-logic)
