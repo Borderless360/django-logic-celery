@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="django-logic-celery",
-    version="0.0.6",
+    version="0.0.7",
     author="Emil Balashov",
     author_email="emil@borderless360.com",
     description="Django Logic Celery - background transitions",
@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Borderless360/django-logic-celery",
     keywords="django",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=['tests*', 'demo*']),
     include_package_data=True,
     zip_safe=False,
     license='MIT License',
