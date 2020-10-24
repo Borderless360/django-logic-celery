@@ -7,6 +7,7 @@ PROJECT_APPS = [
     'django_logic',
     'django_logic_celery',
     'demo',
+    'tests',
 ]
 
 INSTALLED_APPS = [

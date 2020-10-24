@@ -2,7 +2,14 @@
 
 [![Build Status](https://travis-ci.org/Borderless360/django-logic-celery.svg?branch=master)](https://travis-ci.org/Borderless360/django-logic-celery)[![Coverage Status](https://coveralls.io/repos/github/Borderless360/django-logic-celery/badge.svg?branch=master)](https://coveralls.io/github/Borderless360/django-logic-celery?branch=master)
 
-Background transitions support for [Django Logic](https://github.com/Borderless360/django-logic)
+The main idea of [Django Logic](https://github.com/Borderless360/django-logic) is to allow developers to
+implement business logic via pure functions. It’s becoming relatively difficult to following the best practices
+of SOLID application and Django Framework design, especially if you want to bring to the project some background
+tasks (via Celery). Django-Logic-Celery takes care of the connection between the pure functions and the business 
+requirements, based on a state of the model object. Please, make sure to make yourself familiar with
+[Django Logic](https://github.com/Borderless360/django-logic) first, as it implements the core functionality 
+and the very package is the only extension allowing using Celery tasks. 
+
 
 ## Installation
 
