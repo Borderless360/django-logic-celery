@@ -1,5 +1,4 @@
 import logging
-from copy import deepcopy
 
 from celery import signature, group, chain, shared_task
 from celery.result import AsyncResult
@@ -71,7 +70,7 @@ def run_side_effects_as_task(app_label, model_name, transition, instance_id, pro
 
     try:
         for side_effect in transition.side_effects.commands:
-            side_effect(instance, **kwargs)
+            side_effect(instance)
     except Exception as error:
         logging.info(f"{state.instance_key} side effects of '{transition.action_name}' failed with error: {error}")
         logging.exception(error)
@@ -115,14 +114,16 @@ class CeleryCommandMixin:
                      f'the following parameters {task_kwargs}')
 
     def get_task_kwargs(self, state: State, **kwargs):
-        task_kwargs = deepcopy(kwargs)
-        task_kwargs.update(dict(
+        task_kwargs = dict(
             app_label=state.instance._meta.app_label,
             model_name=state.instance._meta.model_name,
             instance_id=state.instance.pk,
             process_name=state.process_name,
             field_name=state.field_name
-        ))
+        )
+        if 'exception' in kwargs:
+            task_kwargs['exception'] = kwargs['exception']
+
         return task_kwargs
 
     def queue_task(self, task_kwargs):
