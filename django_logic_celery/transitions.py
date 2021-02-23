@@ -1,4 +1,4 @@
-from django_logic import Transition
+from django_logic import Transition, Action
 
 from django_logic_celery import SideEffectTasks, CallbacksTasks, SideEffectSingleTask
 
@@ -17,4 +17,21 @@ class CeleryTransition(Transition):
 
 
 class CelerySingleTaskTransition(Transition):
+    side_effects_class = SideEffectSingleTask
+
+
+class InProgressAction(Action):
+    side_effects_class = SideEffectTasks
+
+
+class CeleryCallbackAction(Action):
+    callbacks_class = CallbacksTasks
+
+
+class CeleryAction(Action):
+    side_effects_class = SideEffectTasks
+    callbacks_class = CallbacksTasks
+
+
+class CelerySingleTaskAction(Action):
     side_effects_class = SideEffectSingleTask
