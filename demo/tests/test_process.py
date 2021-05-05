@@ -37,6 +37,7 @@ class InvoiceProcessTestCase(TransactionTestCase):
         self.assertEqual(invoice.status, 'sent')
         self.assertEqual(debug_method.call_count, 5)
         expected_side_effects_kwargs = {
+            'foo': 'bar',
             'app_label': 'demo',
             'model_name': 'invoice',
             'instance_id': invoice.id,
@@ -45,6 +46,7 @@ class InvoiceProcessTestCase(TransactionTestCase):
             'transition': InvoiceProcess.transitions[3]
         }
         expected_callbacks_kwargs = {
+            'foo': 'bar',
             'app_label': 'demo',
             'model_name': 'invoice',
             'instance_id': invoice.id,
@@ -79,6 +81,7 @@ class InvoiceProcessTestCase(TransactionTestCase):
         self.assertEqual(invoice.status, 'failed')
         self.assertEqual(debug_method.call_count, 3)
         expected_side_effects_kwargs = {
+            'foo': 'bar',
             'app_label': 'demo',
             'model_name': 'invoice',
             'instance_id': invoice.id,
@@ -87,6 +90,7 @@ class InvoiceProcessTestCase(TransactionTestCase):
             'transition': InvoiceProcess.transitions[5]
         }
         expected_callbacks_kwargs = {
+            'foo': 'bar',
             'app_label': 'demo',
             'model_name': 'invoice',
             'instance_id': invoice.id,
