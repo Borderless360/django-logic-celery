@@ -106,7 +106,7 @@ class CeleryCommandMixin:
 
     def execute(self, state: State, **kwargs):
         if not self.commands:
-            return super().execute(state)
+            return super().execute(state, **kwargs)
 
         task_kwargs = self.get_task_kwargs(state, **kwargs)
         self.queue_task(task_kwargs)
@@ -119,10 +119,9 @@ class CeleryCommandMixin:
             model_name=state.instance._meta.model_name,
             instance_id=state.instance.pk,
             process_name=state.process_name,
-            field_name=state.field_name
+            field_name=state.field_name,
+            **kwargs
         )
-        if 'exception' in kwargs:
-            task_kwargs['exception'] = kwargs['exception']
 
         return task_kwargs
 
