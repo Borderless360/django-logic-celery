@@ -41,15 +41,18 @@ class InvoiceProcessTestCase(TransactionTestCase):
             'model_name': 'invoice',
             'instance_id': invoice.id,
             'process_name': 'invoice_process',
+            'action_name': 'demo',
             'field_name': 'status',
-            'transition': InvoiceProcess.transitions[3]
+            'foo': 'bar'
         }
         expected_callbacks_kwargs = {
             'app_label': 'demo',
             'model_name': 'invoice',
             'instance_id': invoice.id,
             'process_name': 'invoice_process',
+            'action_name': 'demo',
             'field_name': 'status',
+            'foo': 'bar'
         }
         self.assertEqual(list(debug_method.call_args_list[0]), [('demo_task_1',), expected_side_effects_kwargs])
         self.assertEqual(list(debug_method.call_args_list[1]), [('demo_task_2', None), expected_side_effects_kwargs])
@@ -83,16 +86,19 @@ class InvoiceProcessTestCase(TransactionTestCase):
             'model_name': 'invoice',
             'instance_id': invoice.id,
             'process_name': 'invoice_process',
+            'action_name': 'failing_transition',
             'field_name': 'status',
-            'transition': InvoiceProcess.transitions[5]
+            'foo': 'bar'
         }
         expected_callbacks_kwargs = {
             'app_label': 'demo',
             'model_name': 'invoice',
             'instance_id': invoice.id,
             'process_name': 'invoice_process',
+            'action_name': 'failing_transition',
             'field_name': 'status',
-            'exception': ctx.exception,
+            'foo': 'bar',
+            'exception': ctx.exception
         }
         self.assertEqual(list(debug_method.call_args_list[0]), [('demo_task_1',), expected_side_effects_kwargs])
         self.assertEqual(list(debug_method.call_args_list[1]), [('demo_task_3',), expected_callbacks_kwargs])
