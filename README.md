@@ -1,6 +1,6 @@
 ![django-logic-celery](https://user-images.githubusercontent.com/6745569/87846587-7e57f580-c903-11ea-8ef7-b3ca129c92b1.png)
 
-[![Build Status](https://travis-ci.org/Borderless360/django-logic-celery.svg?branch=master)](https://travis-ci.org/Borderless360/django-logic-celery)[![Coverage Status](https://coveralls.io/repos/github/Borderless360/django-logic-celery/badge.svg?branch=master)](https://coveralls.io/github/Borderless360/django-logic-celery?branch=master)
+[![CI](https://github.com/Borderless360/django-logic-celery/actions/workflows/ci.yml/badge.svg)](https://github.com/Borderless360/django-logic-celery/actions/workflows/ci.yml)
 
 The main idea of [Django Logic](https://github.com/Borderless360/django-logic) is to allow developers implementing 
 business logic via pure functions. Django-Logic-Celery takes care of the connection

@@ -6,6 +6,7 @@ from django.apps import apps
 from django.db import transaction
 from django_logic.commands import SideEffects, Callbacks
 from django_logic.state import State
+from django_logic.logger import transition_logger as logger, TransitionEventType
 
 
 def _find_transition_in_process(process, action_name):
@@ -50,8 +51,10 @@ def complete_transition(*args, **kwargs):
     transition = get_transition_from_process(instance, process_name, action_name)
 
     logging.info(f'{state.instance_key} complete transition task started')
+    logger.info(f'{kwargs.get("tr_id")} complete transition task started')
     transition.complete_transition(state, **kwargs)
     logging.info(f'{state.instance_key} complete transition task finished')
+    logger.info(f'{kwargs.get("tr_id")} complete transition task finished')
 
 
 @shared_task(acks_late=True)
@@ -81,11 +84,20 @@ def fail_transition(task_id, *args, **kwargs):
             error = task.info
         logging.info(f"{state.instance_key} action '{transition.action_name}' failed with error {error}")
         logging.exception(error)
+        logger.error(
+            f'{kwargs.get("tr_id")} {TransitionEventType.FAIL.value}: {error}',
+            exc_info=True, extra={'kwargs': kwargs}
+        )
         transition.fail_transition(state, error, **kwargs)
     except Exception as error:
         logging.info(f'{app_label}-{model_name}-{action_name}-{instance_id}'
                       f'failure handler failed with error: {error}')
         logging.exception(error)
+        logger.error(
+            f'{kwargs.get("tr_id")} {app_label}-{model_name}-{action_name}-{instance_id} '
+            f'failure handler failed with error: {error}',
+            exc_info=True
+        )
 
 
 @shared_task(acks_late=True)
@@ -97,13 +109,16 @@ def run_side_effects_as_task(app_label, model_name, action_name, instance_id, pr
     state = getattr(instance, process_name).state
     transition = get_transition_from_process(instance, process_name, action_name)
     logging.info(f"{state.instance_key} side effects of '{transition.action_name}' started")
+    logger.info(f'{kwargs.get("tr_id")} SideEffects {len(transition.side_effects.commands)}')
 
     try:
         for side_effect in transition.side_effects.commands:
+            logger.info(f'{kwargs.get("tr_id")} {TransitionEventType.SIDE_EFFECT.value} {side_effect.__name__}')
             side_effect(instance)
     except Exception as error:
         logging.info(f"{state.instance_key} side effects of '{transition.action_name}' failed with error: {error}")
         logging.exception(error)
+        logger.error(f'{kwargs.get("tr_id")} {error}', exc_info=True, extra={'kwargs': kwargs})
         transition.fail_transition(state, error, **kwargs)
     else:
         logging.info(f"{state.instance_key} side effects of '{transition.action_name}' succeeded")
@@ -119,17 +134,25 @@ def run_callbacks_as_task(app_label, model_name, action_name, instance_id, proce
         instance = model.objects.get(id=instance_id)
         state = getattr(instance, process_name).state
         transition = get_transition_from_process(instance, process_name, action_name)
-        logging.info(f"{state.instance_key} callbacks of '{transition.action_name}' started")
 
         exception = kwargs.get('exception')
         commands = transition.callbacks.commands if not exception else transition.failure_callbacks.commands
         callback_kwargs = {} if not exception else {"exception": exception}
+        logging.info(f"{state.instance_key} callbacks of '{transition.action_name}' started")
+        logger.info(f'{kwargs.get("tr_id")} Callbacks {len(commands)}')
+        command_name = None
         for callback in commands:
+            command_name = callback.__name__
+            logger.info(f'{kwargs.get("tr_id")} {TransitionEventType.CALLBACK.value} {command_name}')
             callback(instance, **callback_kwargs)
     except Exception as error:
         logging.info(f'{app_label}-{model_name}-{action_name}-{instance_id}'
                      f'callbacks failed with error: {error}')
         logging.exception(error)
+        logger.error(
+            f'{kwargs.get("tr_id")} {TransitionEventType.CALLBACK.value} {command_name}: {error}',
+            exc_info=True, extra={'kwargs': kwargs}
+        )
 
 
 class CeleryCommandMixin:
@@ -143,6 +166,10 @@ class CeleryCommandMixin:
         self.queue_task(task_kwargs)
         logging.info(f'{self.__class__.__name__} has been added to queue with '
                      f'the following parameters {task_kwargs}')
+        logger.info(
+            f'{kwargs.get("tr_id")} {TransitionEventType.BACKGROUND_MODE.value} '
+            f'{self.__class__.__name__} queued with {task_kwargs}'
+        )
 
     def get_task_kwargs(self, state: State, **kwargs):
         task_kwargs = dict(

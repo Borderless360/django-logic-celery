@@ -129,3 +129,9 @@ dmypy.json
 .pyre/
 
 .idea/
+
+
+Dockerfile
+makefile
+/logs/
+.cursor/

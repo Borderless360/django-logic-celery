@@ -43,7 +43,8 @@ class InvoiceProcessTestCase(TransactionTestCase):
             'process_name': 'invoice_process',
             'action_name': 'demo',
             'field_name': 'status',
-            'foo': 'bar'
+            'foo': 'bar',
+            'process_class': 'demo.process.InvoiceProcess',
         }
         expected_callbacks_kwargs = {
             'app_label': 'demo',
@@ -52,7 +53,8 @@ class InvoiceProcessTestCase(TransactionTestCase):
             'process_name': 'invoice_process',
             'action_name': 'demo',
             'field_name': 'status',
-            'foo': 'bar'
+            'foo': 'bar',
+            'process_class': 'demo.process.InvoiceProcess',
         }
         self.assertEqual(list(debug_method.call_args_list[0]), [('demo_task_1',), expected_side_effects_kwargs])
         self.assertEqual(list(debug_method.call_args_list[1]), [('demo_task_2', None), expected_side_effects_kwargs])
@@ -75,9 +77,9 @@ class InvoiceProcessTestCase(TransactionTestCase):
 
     @patch('demo.models.Invoice.debug')
     def test_invoice_failure_callbacks(self, debug_method):
+        from demo.exceptions import DemoException
         invoice = Invoice.objects.create(status='draft')
-        with self.assertRaises(Exception) as ctx:
-            invoice.invoice_process.failing_transition(foo='bar')
+        invoice.invoice_process.failing_transition(foo='bar')
         invoice.refresh_from_db()
         self.assertEqual(invoice.status, 'failed')
         self.assertEqual(debug_method.call_count, 3)
@@ -88,8 +90,12 @@ class InvoiceProcessTestCase(TransactionTestCase):
             'process_name': 'invoice_process',
             'action_name': 'failing_transition',
             'field_name': 'status',
-            'foo': 'bar'
+            'foo': 'bar',
+            'process_class': 'demo.process.InvoiceProcess',
         }
+        self.assertEqual(list(debug_method.call_args_list[0]), [('demo_task_1',), expected_side_effects_kwargs])
+        exception = debug_method.call_args_list[1][1]['exception']
+        self.assertIsInstance(exception, DemoException)
         expected_callbacks_kwargs = {
             'app_label': 'demo',
             'model_name': 'invoice',
@@ -98,9 +104,9 @@ class InvoiceProcessTestCase(TransactionTestCase):
             'action_name': 'failing_transition',
             'field_name': 'status',
             'foo': 'bar',
-            'exception': ctx.exception
+            'process_class': 'demo.process.InvoiceProcess',
+            'exception': exception,
         }
-        self.assertEqual(list(debug_method.call_args_list[0]), [('demo_task_1',), expected_side_effects_kwargs])
         self.assertEqual(list(debug_method.call_args_list[1]), [('demo_task_3',), expected_callbacks_kwargs])
         self.assertEqual(list(debug_method.call_args_list[2]), [('demo_task_4',), expected_callbacks_kwargs])
 
