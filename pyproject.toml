@@ -19,14 +19,14 @@ classifiers = [
     "Operating System :: OS Independent",
     "Intended Audience :: Developers",
     "Framework :: Django",
-    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 4.0",
     "Framework :: Django :: 5.0",
     "Framework :: Django :: 5.1",
     "Framework :: Django :: 5.2",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "django>=4.2",
+    "django>=4.0",
     "celery>=5.0",
     # "django-logic>=0.1",
     "django-logic @ git+https://github.com/Andrey-Omelyanuk/django-logic.git@2a16038860670a371c0d56fef4fad517cba2beb2",
