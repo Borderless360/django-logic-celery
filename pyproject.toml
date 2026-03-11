@@ -29,7 +29,7 @@ dependencies = [
     "django>=4.0",
     "celery>=5.0",
     # "django-logic>=0.1",
-    "django-logic @ git+https://github.com/Andrey-Omelyanuk/django-logic.git@c42b74c077e542ea369c1c6a7c1d55324721a69c",
+    "django-logic @ git+https://github.com/Andrey-Omelyanuk/django-logic.git@d02e57594cf82febbee2194b40689f58823a8d08",
 ]
 
 [project.urls]
